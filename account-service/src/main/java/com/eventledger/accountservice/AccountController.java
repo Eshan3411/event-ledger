@@ -1,33 +1,34 @@
 package com.eventledger.accountservice;
 
-import com.eventledger.accountservice.Account;
-import com.eventledger.accountservice.repository.AccountRepository;
+import org.springframework.http.*;
 import org.springframework.web.bind.annotation.*;
-
-import java.util.List;
+import java.util.Optional;
 
 @RestController
 @RequestMapping("/accounts")
 public class AccountController {
+    private final AccountRepository accountRepository;
 
-    private final AccountRepository repository;
-
-    public AccountController(AccountRepository repository) {
-        this.repository = repository;
+    public AccountController(AccountRepository accountRepository) {
+        this.accountRepository = accountRepository;
     }
 
-    @GetMapping
-    public List<Account> getAll() {
-        return repository.findAll();
+    @PostMapping("/{accountId}/transactions")
+    public ResponseEntity<?> applyTransaction(@PathVariable String accountId, @RequestBody Event event) {
+        Account account = accountRepository.findById(accountId).orElse(new Account(accountId, 0.0));
+        double newBalance = account.getBalance();
+        if (event.getType().equals("CREDIT")) newBalance += event.getAmount();
+        else if (event.getType().equals("DEBIT")) newBalance -= event.getAmount();
+        account.setBalance(newBalance);
+        account.addTransaction(event);
+        accountRepository.save(account);
+        return ResponseEntity.ok(account);
     }
 
-    @PostMapping
-    public Account create(@RequestBody Account account) {
-        return repository.save(account);
-    }
-
-    @GetMapping("/{id}")
-    public Account getById(@PathVariable Long id) {
-        return repository.findById(id).orElseThrow();
+    @GetMapping("/{accountId}/balance")
+    public ResponseEntity<?> getBalance(@PathVariable String accountId) {
+        return accountRepository.findById(accountId)
+                .map(acc -> ResponseEntity.ok(acc.getBalance()))
+                .orElse(ResponseEntity.notFound().build());
     }
 }

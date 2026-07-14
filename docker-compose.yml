@@ -4,9 +4,6 @@ services:
     build: ./event-gateway
     ports:
       - "8080:8080"
-    depends_on:
-      - account-service
-
   account-service:
     build: ./account-service
     ports:
